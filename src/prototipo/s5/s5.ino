@@ -12,17 +12,17 @@
 #include <WiFiUdp.h>
 #include <SD.h>
 
+#if __has_include("credentials.local.h")
+#include "credentials.local.h"
+#else
+#error "Arquivo credentials.local.h ausente em src/prototipo/s5/. Defina: UBIDOTS_TOKEN, SSID e PW."
+#endif
 
-const char *UBIDOTS_TOKEN = "BBUS-1LgQxtgwBPrxJDGE9GrBvX5wbZqfcJ";  // TOKEN do Ubidots
-const char *WIFI_SSID = "Inteli-COLLEGE";                           // Wi-Fi SSID
-const char *WIFI_PASS = "";                                         // Senha do Wi-Fi 
-//const char *WIFI_SSID = "SHARE-RESIDENTE";                        
-//const char *WIFI_PASS = "";                         
 const char *DEVICE_LABEL = "balancairon";                           // Label do dispositivo onde os dados serão publicados
 const char *WEIGHT_LABEL = "weight";                                // Variável (peso) do dispositivo onde os dados serão publicados
 const char *TEMP_LABEL = "temperature";                             // Variável (temperatura) do dispositivo onde os dados serão publicados
 const char *HMDT_LABEL = "humidity";                                // Variável (umidade) do dispositivo onde os dados serão publicados
-const int PUBLISH_FREQUENCY = 2000;                                 // Frequência em milissegundos 
+const int PUBLISH_FREQUENCY = 2000;                                 // Frequência em milissegundos
 unsigned long timer;
 uint8_t analogPin = 34;                                             // Pin usado para ler dados do GPIO34 ADC_CH6.
 const int pin_red = 15;                                               // Pino vermelho conectado ao LED que indica quando o peso máximo foi atingido
@@ -75,7 +75,7 @@ public:
     return scale.get_units(5); // Lê o peso atual, faz a média de 5 leituras e subtrai a tara
   }
   // Função para verificar se o peso máximo foi atingido e acionar o LED, caso atinja o peso máximo
-  
+
   void checkMaxWeight() {
     float weight = measureWeight();                                 // Mede o peso atual com a função measureWeight
     if ((weight >= maxWeight) && (cellMaxWeight >= weight)) {       // Se o peso for maior ou igual ao máximo permitido
@@ -84,7 +84,7 @@ public:
       digitalWrite(bluePin, 255);                                   // Desliga o LED azul
       Serial.println("Peso maximo atingido!");                      // Imprime uma mensagem no monitor serial de alerta de excesso de peso
       lcd.setCursor(0, 1);                                          // Localiza o cursor do display para a segunda linha
-      lcd.print("Peso maximo!    ");                                // Imprime uma mensagem no monitor lcd de alerta de excesso de peso      
+      lcd.print("Peso maximo!    ");                                // Imprime uma mensagem no monitor lcd de alerta de excesso de peso
     } else if ((weight >= cellMaxWeight) && (weight > maxWeight)) { // Se o peso for maior ou igual ao peso limite físico da célula de carga
       digitalWrite(redPin, 0);                                      // Liga o LED vermelho
       digitalWrite(greenPin, 255);                                  // Desliga o LED verde
@@ -151,14 +151,14 @@ void setup() {
   status = bme.begin(0x76); // Inicializa o sensor BME280 com o endereço I2C 0x76
   if (!status) {
     Serial.println("Sensor BME280 não encontrado, cheque a fiação!"); // Imprime no console se o sensor BME280 não for encontrado
-    lcd.print("sensor temp");                                       // Imprime no diplay que há um problema no sensor de temperatura  
+    lcd.print("sensor temp");                                       // Imprime no diplay que há um problema no sensor de temperatura
     lcd.setCursor(0,1);
     lcd.print("desconectado!");
     delay(1000);
   };
   delay(1000);
   lcd.print("conectando wifi");
-  ubidots.connectToWifi(WIFI_SSID, WIFI_PASS); // Conecta-se à rede Wi-Fi usando credenciais fornecidas
+  ubidots.connectToWifi(SSID, PW); // Conecta-se à rede Wi-Fi usando credenciais do credentials.local.h
   lcd.clear();
   lcd.setCursor(0,0);
   lcd.print("conectando ao");
@@ -166,7 +166,9 @@ void setup() {
   lcd.print("servidor...");
   ubidots.setCallback(callback); // Configura a função de retorno de chamada para o cliente Ubidots
   ubidots.setup(); // Configuração inicial do cliente Ubidots
-  ubidots.reconnect(); // Tenta reconectar ao servidor Ubidots
+  if (!ubidots.connect()) {
+    Serial.println("Falha ao conectar MQTT no setup");
+  }
   timer = millis();// Inicializa a variável de temporização com o tempo atual em milissegundos
   delay(1000);
 
@@ -192,7 +194,7 @@ void loop() {
   Serial.println("°C");
   Serial.print(humidity);
   Serial.println("%   ");
-  
+
   // Atualiza o display LCD com a temperatura e umidade
   lcd.setCursor(0, 1); // Muda o cursor para a segunda linha do display
   lcd.print(temp, 1); // Exibe a temperatura no display com uma casa decimal
@@ -206,25 +208,31 @@ void loop() {
 
   // Reconecta ao servidor Ubidots se não estiver conectado
   if (!ubidots.connected()) {
-    Serial.print("Erro na conexao");
+    Serial.println("Erro na conexao MQTT");
     lcd.clear();
     lcd.setCursor(0,0);
     lcd.print("Erro na conexao!");
     lcd.setCursor(0,1);
     lcd.print("Reconectando...");
-    ubidots.reconnect();
-    delay(1000);
-    lcd.clear();
+    if (ubidots.connect()) {
+      Serial.println("MQTT reconectado");
+      lcd.clear();
+    } else {
+      Serial.println("Falha MQTT, nova tentativa no proximo ciclo");
+    }
+    delay(300);
   }
   // Publica os dados no servidor Ubidots com a frequência especificada
-  if (labs(millis() - timer) > PUBLISH_FREQUENCY) {
+  if (ubidots.connected() && labs(millis() - timer) > PUBLISH_FREQUENCY) {
     ubidots.add(WEIGHT_LABEL, weight);   // Adiciona o valor do peso aos dados a serem publicados
     ubidots.add(TEMP_LABEL, temp);       // Adiciona o valor da temperatura aos dados a serem publicados
     ubidots.add(HMDT_LABEL, humidity);   // Adiciona o valor da umidade aos dados a serem publicados
     ubidots.publish(DEVICE_LABEL);       // Publica os dados no servidor Ubidots
     timer = millis();
   }
-  ubidots.loop(); // Executa o loop do cliente Ubidots para manter a comunicação
+  if (ubidots.connected()) {
+    ubidots.loop(); // Executa o loop do cliente Ubidots para manter a comunicação
+  }
   delay(1000);
     // Verifica se o botão foi pressionado para zerar a balança
 
@@ -247,5 +255,3 @@ void loop() {
     myScale.tara(); // Zera a balança
   }
 }
-
- 

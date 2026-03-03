@@ -41,5 +41,4 @@
 src/prototipo/s5/.env
 src/prototipo/s5/credentials.local.h
 
-# Local planning workspace
-.specs/
+# Planning workspace (.specs) is versioned

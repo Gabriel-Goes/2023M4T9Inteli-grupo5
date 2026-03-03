@@ -10,6 +10,39 @@ Updated: 2026-03-03
 
 ## Itens de roadmap (curto prazo)
 
+### RDM-00 - Estrutura multi-sensor para ensaios de laboratorio (proposta Fabio)
+
+Contexto:
+- O laboratorio utiliza sensores distintos em ensaios diferentes.
+- A proposta e transformar o ESP32 em plataforma de aquisicao multi-sensor, com troca operacional via botoes sem regravar firmware.
+
+Objetivo:
+- Permitir selecionar o perfil de sensor no botao vermelho e calibrar o sensor ativo no botao azul.
+
+Escopo V1:
+- Perfis suportados: `DT-20B (mm)` e `Celula de carga (kg)`.
+- Botao vermelho:
+  - clique curto: percorre lista de sensores.
+  - confirmacao automatica por timeout.
+  - clique longo: liga/desliga backlight do LCD.
+- Botao azul:
+  - DT-20B: curto = zero, longo = referencia 20 mm.
+  - Celula de carga: tara (zero) com escala fixa.
+- Persistencia em NVS do ultimo sensor selecionado.
+- Telemetria por label do sensor ativo + `sensor_type_id`.
+
+Criterios de aceite:
+1. Troca de sensor funcional sem recompilar firmware.
+2. Sensor selecionado mantido apos reboot.
+3. Calibracao operacional por botao azul conforme perfil ativo.
+4. LCD e serial exibem valor com unidade correta (`mm` ou `kg`).
+5. Publicacao MQTT com label do sensor ativo e campo identificador do tipo.
+
+Status:
+- Implemented (firmware em branch de trabalho)
+
+---
+
 ### RDM-01 - Verificacao e mitigacao de ruido de sinal em repouso
 
 Contexto:

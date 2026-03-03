@@ -7,7 +7,7 @@ Este documento consolida a migracao do S5 de peso (kg) para deslocamento (mm) e 
 - Sensor principal atual: transdutor linear DT-20B (0-20 mm).
 - Unidade principal do sistema: `mm` (LCD, serial e Ubidots).
 - Botao azul: calibracao de zero e span.
-- Botao vermelho: liga/desliga o backlight do LCD (funcao no firmware).
+- Botao vermelho: selecao de sensor no clique curto; LCD on/off no clique longo.
 - Indicacao local: LED RGB por faixas de deslocamento.
 - Display local: LCD 16x2 via I2C.
 - Pares de fios preto/vermelho e branco/verde: ponte de medicao entre DT-20B e HX711.
@@ -17,7 +17,7 @@ Este documento consolida a migracao do S5 de peso (kg) para deslocamento (mm) e 
 | Periferico | Cor fisica | Funcao operacional | GPIO/Interface | Conector/ligacao | Estado atual | Observacoes |
 | --- | --- | --- | --- | --- | --- | --- |
 | `BUTTON_ZERO` | Azul | Calibracao: toque curto = `raw_zero`; segurar 3s e soltar = `raw_at_20mm` | `GPIO0` | Entrada digital de botao no ESP32 | Funcao confirmada em firmware, cor confirmada | Posicao/etiqueta fisica: `PENDENTE DE VALIDACAO`; tipo do botao: `PENDENTE` |
-| `BUTTON_DISPLAY` | Vermelho | Alterna backlight do LCD (on/off) | `GPIO17` | Entrada digital de botao no ESP32 | Funcao confirmada em firmware, cor confirmada | Registrado como botao de display no firmware; nao documentar como reset logico |
+| `BUTTON_DISPLAY` | Vermelho | Clique curto: percorre sensores; clique longo: liga/desliga LCD | `GPIO17` | Entrada digital de botao no ESP32 | Funcao confirmada em firmware, cor confirmada | Nao documentar como reset logico |
 | `LED_RGB` | `PENDENTE DE VALIDACAO` | Indicacao de estado (normal/aviso/critico) | `GPIO15` (R), `GPIO2` (G), `GPIO19` (B) | Saidas digitais para LED RGB | GPIOs confirmados em firmware | Mapeamento canal-cor final depende da montagem fisica |
 | `LCD` | Backlight branca | Exibicao local de deslocamento, temperatura e umidade | I2C (`0x27`) | Barramento I2C no ESP32 | Interface confirmada em firmware | Modelo fisico exato: `PENDENTE DE VALIDACAO` |
 | `HX711` | `PENDENTE DE VALIDACAO` | Conversao da ponte de medicao para leitura digital | `DT=GPIO4`, `SCK=GPIO18` | Ponte E+/E-/A+/A- | Interface confirmada em firmware | Caminho de sinal mantido na migracao para mm |
@@ -39,7 +39,7 @@ flowchart LR
     APAIR["Par Branco/Verde<br/>A+ e A-"]
 
     BTN_ZERO -->|botao de calibracao| ESP32
-    BTN_DISP -->|botao display on/off| ESP32
+    BTN_DISP -->|selecao de sensor| ESP32
     ESP32 -->|sinalizacao local| LED
     ESP32 -->|I2C| LCD
     DT20B -->|ponte de medicao| HX
@@ -53,16 +53,19 @@ flowchart LR
 ## Legenda de cores e convencoes
 
 - Azul: botao de calibracao (`BUTTON_ZERO`).
-- Vermelho: botao de display (`BUTTON_DISPLAY`).
+- Vermelho: botao de selecao de sensor (`BUTTON_DISPLAY`), com clique longo para LCD on/off.
 - Preto/Vermelho: par `E+/E-` da ponte de medicao DT-20B `<->` HX711.
 - Branco/Verde: par `A+/A-` da ponte de medicao DT-20B `<->` HX711.
 - Itens marcados como `PENDENTE DE VALIDACAO` precisam confirmacao visual final na bancada.
 
 ## Como o codigo funciona agora
 
-- O firmware le o valor bruto (`raw`) do HX711.
-- O `raw` e convertido para deslocamento em milimetros por calibracao linear de 2 pontos.
-- A unidade principal em LCD, serial e telemetria e `mm`.
+- O firmware possui modo multi-sensor V1 com dois perfis: `DT-20B (mm)` e `celula de carga (kg)`.
+- O botao vermelho alterna o sensor ativo e salva a selecao em memoria nao volatil (NVS).
+- O botao azul calibra o sensor ativo:
+  - DT-20B: zero (curto) e span 20 mm (longo).
+  - Celula de carga: tara (zero).
+- O firmware le o valor bruto (`raw`) do HX711 e converte conforme o perfil ativo.
 
 Formula:
 
@@ -91,7 +94,8 @@ Constantes usadas:
 
 ## Telemetria
 
-- Variavel principal Ubidots: `displacement_mm`
+- Variavel principal Ubidots: label depende do sensor ativo (`displacement_mm` ou `weight_kg`)
+- Variavel de identificacao do perfil ativo: `sensor_type_id`
 - Variaveis adicionais: `temperature`, `humidity`
 - Device label atual: `balancairon`
 

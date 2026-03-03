@@ -42,7 +42,7 @@ flowchart LR
     ESP32 -->|sinalizacao local| LED
     ESP32 -->|I2C| LCD
     DT20B -->|ponte de medicao| HX
-    HX -->|sinal digital (DT/SCK)| ESP32
+    HX -->|sinal digital DT e SCK| ESP32
     PWR -->|energia| ESP32
     DATA -->|caminho de dados sensor| HX
 ```

@@ -15,7 +15,7 @@ The current S5 firmware models the primary bridge signal as load weight (kg). Ha
   - `6013745` - guia de calibracao e validacao de bancada
 - Working tree atual:
   - `src/prototipo/s5/s5.ino` com ajustes locais nao commitados (calibracao 20 mm por pressionar 3s e gravar ao soltar + tick de monitor em ~1s)
-  - `src/prototipo/s5/EXPLICACAO_MIGRACAO_MM.md` ainda nao versionado
+  - Documentacao unificada em `src/prototipo/s5/README_DT20B.md` (arquivo de explicacao separado removido)
 
 ## Goals
 

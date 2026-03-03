@@ -39,8 +39,8 @@ This branch migrated S5 firmware from load/weight semantics (`kg`) to linear dis
 - Added operator hint in serial at startup.
 - Reduced effective monitor cycle to ~1s by removing one extra delay in loop.
 
-2. `src/prototipo/s5/EXPLICACAO_MIGRACAO_MM.md` (untracked)
-- Short technical explanation of migration from kg to mm.
+2. Documentation update
+- `src/prototipo/s5/README_DT20B.md` now consolidates technical migration explanation and calibration guide in a single file.
 
 ## 5) Functional Behavior Snapshot
 
@@ -89,7 +89,7 @@ This branch migrated S5 firmware from load/weight semantics (`kg`) to linear dis
 ## 8) Recommended Next Actions (Priority)
 
 1. Commit pending `s5.ino` calibration interaction updates after one final bench pass.
-2. Version `EXPLICACAO_MIGRACAO_MM.md` if it should be part of branch handoff docs.
+2. Keep documentation consolidated in `README_DT20B.md` to reduce handoff complexity.
 3. Run and record final validation matrix:
   - zeroing repeatability,
   - span capture repeatability,

@@ -32,7 +32,7 @@ Updated: 2026-03-03
    - repeatability at small displacement
 2. Decide whether to commit:
    - pending `s5.ino` local updates
-   - `EXPLICACAO_MIGRACAO_MM.md` file
+   - documentation consolidation updates in `README_DT20B.md`
 3. Decide if calibration should be persisted across reboot (non-volatile storage).
 
 ## Risks

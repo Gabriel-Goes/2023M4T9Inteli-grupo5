@@ -28,6 +28,7 @@ const int PIN_BLUE = 19;
 const int ZERO_BUTTON = 0;
 const int DISPLAY_BUTTON = 17;
 bool displayOn = true;
+const unsigned long LONG_PRESS_20MM_MS = 3000UL;
 
 const int HX711_DT_PIN = 4;
 const int HX711_SCK_PIN = 18;
@@ -116,6 +117,18 @@ class LinearDisplacementSensor {
     lcd.print("Zero ajustado   ");
   }
 
+  void setSpanReference20mm() {
+    rawAt20mm = readRawAverage();
+    Serial.print("Referencia 20mm ajustada: ");
+    Serial.println(rawAt20mm);
+    lcd.setCursor(0, 1);
+    lcd.print("Span 20mm ok    ");
+
+    if (!isCalibrationValid()) {
+      Serial.println("ATENCAO: valor de 20mm muito proximo do zero");
+    }
+  }
+
   void printCalibrationInfo() {
     Serial.print("Calibracao rawZero=");
     Serial.print(rawZero);
@@ -174,6 +187,36 @@ byte barra[8] = {
 LinearDisplacementSensor displacementSensor(HX711_DT_PIN, HX711_SCK_PIN, PIN_RED, PIN_GREEN, PIN_BLUE, RAW_ZERO_DEFAULT,
                                             RAW_AT_20MM_DEFAULT, DISPLACEMENT_WARN_MM, DISPLACEMENT_MAX_MM);
 
+void handleCalibrationButton() {
+  if (digitalRead(ZERO_BUTTON) != LOW) {
+    return;
+  }
+
+  delay(50);
+  if (digitalRead(ZERO_BUTTON) != LOW) {
+    return;
+  }
+
+  unsigned long pressedAt = millis();
+  bool spanCalibrationMode = false;
+  while (digitalRead(ZERO_BUTTON) == LOW) {
+    if (!spanCalibrationMode && (millis() - pressedAt >= LONG_PRESS_20MM_MS)) {
+      spanCalibrationMode = true;
+      Serial.println("Modo calibracao 20mm ativo, solte o botao para gravar.");
+      lcd.setCursor(0, 1);
+      lcd.print("Solte p gravar20");
+    }
+    delay(10);
+  }
+
+  if (spanCalibrationMode) {
+    displacementSensor.setSpanReference20mm();
+  } else {
+    displacementSensor.zeroReference();
+  }
+  delay(200);
+}
+
 void setup() {
   Serial.begin(57600);
   pinMode(ZERO_BUTTON, INPUT_PULLUP);
@@ -197,6 +240,7 @@ void setup() {
 
   displacementSensor.begin();
   displacementSensor.printCalibrationInfo();
+  Serial.println("Botao ZERO: toque curto = 0mm, segure 3s = capturar 20mm");
 
   bool status = bme.begin(0x76);
   if (!status) {
@@ -257,7 +301,6 @@ void loop() {
   lcd.print("%   ");
 
   displacementSensor.updateLedByDisplacement(displacementMm);
-  delay(1000);
 
   if (!ubidots.connected()) {
     Serial.println("Erro na conexao MQTT");
@@ -305,11 +348,5 @@ void loop() {
     }
   }
 
-  if (digitalRead(ZERO_BUTTON) == LOW) {
-    delay(50);
-    if (digitalRead(ZERO_BUTTON) == LOW) {
-      displacementSensor.zeroReference();
-      delay(300);
-    }
-  }
+  handleCalibrationButton();
 }

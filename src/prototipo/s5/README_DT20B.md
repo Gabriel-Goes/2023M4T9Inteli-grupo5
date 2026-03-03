@@ -23,32 +23,28 @@ Este documento consolida a migracao do S5 de peso (kg) para deslocamento (mm) e 
 | Conector de alimentacao | Preto e vermelho | Alimentacao do prototipo | Alimentacao DC | Cabos de energia | Cor confirmada | Tensao/corrente nominal: `PENDENTE DE VALIDACAO` |
 | Conector de dados do sensor | Branco e verde | Caminho de dados do sensor | Dados do circuito de medicao | Cabos de dados | Cor confirmada | Mapa exato por borne/pino fisico: `PENDENTE DE VALIDACAO` |
 
-## Diagrama textual (UML simplificado)
+## Diagrama textual (Mermaid)
 
-```plantuml
-@startuml
-skinparam monochrome true
-skinparam componentStyle rectangle
+```mermaid
+flowchart LR
+    BTN_ZERO["BUTTON_ZERO<br/>Azul<br/>GPIO0"]
+    BTN_DISP["BUTTON_DISPLAY<br/>Vermelho<br/>GPIO17"]
+    ESP32["ESP32"]
+    LED["LED_RGB<br/>GPIO15/2/19"]
+    LCD["LCD 16x2 I2C<br/>Addr 0x27<br/>Backlight branca"]
+    HX["HX711<br/>DT=GPIO4<br/>SCK=GPIO18"]
+    DT20B["Transdutor DT-20B<br/>(ponte E+/E-/A+/A-)"]
+    PWR["Conector alimentacao<br/>Preto/Vermelho"]
+    DATA["Conector dados<br/>Branco/Verde"]
 
-component "ESP32" as ESP32
-component "BUTTON_ZERO\nAzul\nGPIO0" as BTN_ZERO
-component "BUTTON_DISPLAY\nVermelho\nGPIO17" as BTN_DISP
-component "LED_RGB\nGPIO15/2/19" as LED
-component "LCD 16x2 I2C\nAddr 0x27\nBacklight branca" as LCD
-component "HX711\nDT=GPIO4\nSCK=GPIO18" as HX
-component "Transdutor DT-20B\n(ponte E+/E-/A+/A-)" as DT20B
-component "Conector alimentacao\nPreto/Vermelho" as PWR
-component "Conector dados\nBranco/Verde" as DATA
-
-BTN_ZERO --> ESP32 : botao de calibracao
-BTN_DISP --> ESP32 : botao display on/off
-ESP32 --> LED : sinalizacao local
-ESP32 --> LCD : I2C
-DT20B --> HX : ponte de medicao
-HX --> ESP32 : sinal digital (DT/SCK)
-PWR --> ESP32 : energia
-DATA --> HX : caminho de dados sensor
-@enduml
+    BTN_ZERO -->|botao de calibracao| ESP32
+    BTN_DISP -->|botao display on/off| ESP32
+    ESP32 -->|sinalizacao local| LED
+    ESP32 -->|I2C| LCD
+    DT20B -->|ponte de medicao| HX
+    HX -->|sinal digital (DT/SCK)| ESP32
+    PWR -->|energia| ESP32
+    DATA -->|caminho de dados sensor| HX
 ```
 
 ## Legenda de cores e convencoes

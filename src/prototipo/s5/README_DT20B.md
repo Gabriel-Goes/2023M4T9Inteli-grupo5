@@ -10,6 +10,7 @@ Este documento consolida a migracao do S5 de peso (kg) para deslocamento (mm) e 
 - Botao vermelho: liga/desliga o backlight do LCD (funcao no firmware).
 - Indicacao local: LED RGB por faixas de deslocamento.
 - Display local: LCD 16x2 via I2C.
+- Pares de fios preto/vermelho e branco/verde: ponte de medicao entre DT-20B e HX711.
 
 ## Perifericos da placa (fisico + firmware)
 
@@ -20,8 +21,8 @@ Este documento consolida a migracao do S5 de peso (kg) para deslocamento (mm) e 
 | `LED_RGB` | `PENDENTE DE VALIDACAO` | Indicacao de estado (normal/aviso/critico) | `GPIO15` (R), `GPIO2` (G), `GPIO19` (B) | Saidas digitais para LED RGB | GPIOs confirmados em firmware | Mapeamento canal-cor final depende da montagem fisica |
 | `LCD` | Backlight branca | Exibicao local de deslocamento, temperatura e umidade | I2C (`0x27`) | Barramento I2C no ESP32 | Interface confirmada em firmware | Modelo fisico exato: `PENDENTE DE VALIDACAO` |
 | `HX711` | `PENDENTE DE VALIDACAO` | Conversao da ponte de medicao para leitura digital | `DT=GPIO4`, `SCK=GPIO18` | Ponte E+/E-/A+/A- | Interface confirmada em firmware | Caminho de sinal mantido na migracao para mm |
-| Conector de alimentacao | Preto e vermelho | Alimentacao do prototipo | Alimentacao DC | Cabos de energia | Cor confirmada | Tensao/corrente nominal: `PENDENTE DE VALIDACAO` |
-| Conector de dados do sensor | Branco e verde | Caminho de dados do sensor | Dados do circuito de medicao | Cabos de dados | Cor confirmada | Mapa exato por borne/pino fisico: `PENDENTE DE VALIDACAO` |
+| Par `E+/E-` do transdutor | Preto e vermelho | Excitacao da ponte de medicao entre DT-20B e HX711 | Entrada analogica de ponte no HX711 | DT-20B `<->` HX711 | Cor e funcao confirmadas | Nao representa alimentacao geral da placa |
+| Par `A+/A-` do transdutor | Branco e verde | Sinal diferencial da ponte de medicao entre DT-20B e HX711 | Entrada analogica de ponte no HX711 | DT-20B `<->` HX711 | Cor e funcao confirmadas | Mapa exato por borne/pino fisico: `PENDENTE DE VALIDACAO` |
 
 ## Diagrama textual (Mermaid)
 
@@ -34,25 +35,27 @@ flowchart LR
     LCD["LCD 16x2 I2C<br/>Addr 0x27<br/>Backlight branca"]
     HX["HX711<br/>DT=GPIO4<br/>SCK=GPIO18"]
     DT20B["Transdutor DT-20B<br/>(ponte E+/E-/A+/A-)"]
-    PWR["Conector alimentacao<br/>Preto/Vermelho"]
-    DATA["Conector dados<br/>Branco/Verde"]
+    EPAIR["Par Preto/Vermelho<br/>E+ e E-"]
+    APAIR["Par Branco/Verde<br/>A+ e A-"]
 
     BTN_ZERO -->|botao de calibracao| ESP32
     BTN_DISP -->|botao display on/off| ESP32
     ESP32 -->|sinalizacao local| LED
     ESP32 -->|I2C| LCD
     DT20B -->|ponte de medicao| HX
+    DT20B -->|E+ e E-| EPAIR
+    EPAIR -->|entrada de excitacao da ponte| HX
+    DT20B -->|A+ e A-| APAIR
+    APAIR -->|entrada de sinal da ponte| HX
     HX -->|sinal digital DT e SCK| ESP32
-    PWR -->|energia| ESP32
-    DATA -->|caminho de dados sensor| HX
 ```
 
 ## Legenda de cores e convencoes
 
 - Azul: botao de calibracao (`BUTTON_ZERO`).
 - Vermelho: botao de display (`BUTTON_DISPLAY`).
-- Preto/Vermelho: conector de alimentacao.
-- Branco/Verde: conector de dados do sensor.
+- Preto/Vermelho: par `E+/E-` da ponte de medicao DT-20B `<->` HX711.
+- Branco/Verde: par `A+/A-` da ponte de medicao DT-20B `<->` HX711.
 - Itens marcados como `PENDENTE DE VALIDACAO` precisam confirmacao visual final na bancada.
 
 ## Como o codigo funciona agora

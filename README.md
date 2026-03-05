@@ -66,6 +66,13 @@ LINK PARA VÍDEO DA SOLUÇÃO FINAL:
 
 &emsp;&emsp;LINK MANUAL DE INSTRUÇÕES: (https://docs.google.com/document/d/1ER--kwJFhdNPNf6gCanfS6-BQ9GPNWoj/edit?usp=sharing&ouid=109806054179371943488&rtpof=true&sd=true)
 
+## 🧭 Documentação técnica atual (branches recentes)
+
+- Branch `feature/ibirapitanga` (frontend local + stream em tempo real):
+  - Documento mestre: `document/branch_feature_ibirapitanga.md`
+  - Runbook de implantação em rede IPT: `document/plano_implantacao_ibirapitanga_ipt.md`
+  - Guia rápido do app local: `src/ibirapitanga_copy/README.md`
+
 
 ## 🗃 Histórico de lançamentos
 

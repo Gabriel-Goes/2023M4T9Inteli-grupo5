@@ -41,5 +41,10 @@
 src/prototipo/s5/.env
 src/prototipo/s5/credentials.local.h
 
-# Planning workspace (.specs): ignore new files
-.specs/
+# Planning workspace (.specs): version docs, ignore only temp/editor artifacts
+.specs/**/.DS_Store
+.specs/**/*.tmp
+.specs/**/*.temp
+.specs/**/*.swp
+.specs/**/*.swo
+.specs/**/*~

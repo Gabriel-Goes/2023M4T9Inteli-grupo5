@@ -1,21 +1,20 @@
-# Plano de Implantacao - Ibirapitanga Copy no Computador do IPT
+# Runbook de Implantacao - `feature/ibirapitanga` no IPT
 
 Data: 2026-03-05  
 Branch alvo: `feature/ibirapitanga`
 
-## Objetivo
+Este arquivo e operacional (passo a passo de subida em rede IPT).  
+Para arquitetura, contratos e inventario tecnico da branch, consulte:
 
-Subir a copia local da interface (`ibirapitanga_copy`) no computador do IPT e disponibilizar um link direto para o Rodrigo acessar via navegador.
+- `document/branch_feature_ibirapitanga.md`
 
-## Contexto rapido
+## Objetivo operacional
 
-- O frontend local ja esta pronto em `src/ibirapitanga_copy`.
-- O app consome dados em tempo real do mesmo WebSocket do showroom oficial.
-- A entrega desta etapa e habilitar acesso por `IP:PORTA` dentro da rede do IPT.
+Subir a interface local (`src/ibirapitanga_copy`) em uma maquina do IPT e compartilhar links acessiveis na rede interna.
 
-## Passo a passo no computador do IPT
+## Passo a passo
 
-1. Atualizar repositiorio e branch
+1. Atualizar repositiorio e branch:
 
 ```bash
 cd /CAMINHO/DO/REPO
@@ -24,64 +23,57 @@ git checkout feature/ibirapitanga
 git pull --ff-only origin feature/ibirapitanga
 ```
 
-2. Instalar dependencias do frontend
+2. Instalar dependencias:
 
 ```bash
 cd src/ibirapitanga_copy
 npm install
 ```
 
-3. Subir servidor para acesso pela rede
+3. Subir servidor para acesso na rede:
 
 ```bash
 npm run dev -- --host 0.0.0.0 --port 5174
 ```
 
-4. Descobrir IP da maquina do IPT
+4. Descobrir IP da maquina:
 
 ```bash
 hostname -I
 ```
 
-Se `hostname` nao estiver disponivel:
+Alternativa:
 
 ```bash
 ip -4 addr show scope global
 ```
 
-5. Montar e enviar o link para acesso
+5. Compartilhar links:
 
 - Dashboard: `http://IP_DA_MAQUINA:5174/dashboard`
 - Devices: `http://IP_DA_MAQUINA:5174/devices`
 
-Exemplo:
-
-- `http://10.2.54.110:5174/dashboard`
-- `http://10.2.54.110:5174/devices`
-
 ## Validacao rapida
 
-1. Abrir o link em outra maquina da rede IPT.
-2. Confirmar que os cards mudam em tempo real (status de conexao + metricas).
-3. Confirmar que as paginas `/dashboard` e `/devices` abrem sem erro.
+1. Abrir links em outra maquina da rede IPT.
+2. Confirmar atualizacao em tempo real dos cards.
+3. Confirmar abertura sem erro de `/dashboard` e `/devices`.
 
-## Se o link nao abrir
+## Diagnostico rapido
 
-1. Verificar se o processo Vite esta ativo no terminal.
-2. Verificar se a porta esta escutando:
-
-```bash
-ss -tuln | grep 5174
-```
-
-3. Se houver firewall local (ufw):
+Verificar porta:
 
 ```bash
-sudo ufw allow 5174/tcp
+ss -ltnp '( sport = :5174 )'
 ```
 
-## Resultado esperado da iteracao
+Encerrar servico:
 
-- Rodrigo acessa um link unico da rede IPT.
-- Interface local demonstrando dados em tempo real.
-- Base pronta para proxima etapa: tela dedicada do dispositivo IPT multi-sensor.
+```bash
+kill <PID>
+```
+
+## Resultado esperado
+
+- Acesso remoto funcional por IP:porta na rede interna.
+- Interface local operacional para demonstracao e validacao tecnica.

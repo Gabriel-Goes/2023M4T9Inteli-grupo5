@@ -58,3 +58,29 @@
   - Coletar logs seriais de conexao com debug.
   - Ajustar estrategia de retry/telemetria conforme resultado.
 
+
+## Atualizacao de plataforma - Ibirapitanga Copy (2026-03-05)
+
+### Objetivo
+- Preparar uma copia local da interface do showroom Ibirapitanga para evolucao de UX/UI e apresentacao tecnica.
+
+### Entregas realizadas
+- Fluxo git concluido:
+  - commit de higiene para ignorar novos arquivos de `.specs/`.
+  - merge fast-forward de `feature/s5-linear-displacement-mm` em `main`.
+  - abertura da branch `feature/ibirapitanga` para o novo frontend.
+- Novo app local criado em `src/ibirapitanga_copy` (Vite + React + TypeScript).
+- Rotas implementadas:
+  - `/dashboard`
+  - `/devices`
+- Integracao ao vivo por WebSocket com o endpoint do showroom:
+  - `wss://ws-showroom-ibiraprj.linux.ipt.br/nrt/{deviceId}`
+- Mapeamento inicial de dispositivos existentes:
+  - Barulhometro
+  - AUP
+  - Proantar
+  - Callithrix
+- Card preparado para novo canal `IPT (novo)` com contrato-base de payload para integracao futura do ESP32 multi-sensor.
+
+### Proximo passo
+- Refinar interface com o time Ibirapitanga e adicionar pagina dedicada do dispositivo IPT com filtros por tipo de ensaio/sensor.

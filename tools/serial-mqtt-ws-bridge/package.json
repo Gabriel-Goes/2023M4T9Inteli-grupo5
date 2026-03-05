@@ -1,0 +1,19 @@
+{
+  "name": "serial-mqtt-ws-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "@serialport/parser-readline": "^12.0.0",
+    "mqtt": "^5.14.1",
+    "serialport": "^12.0.0",
+    "ws": "^8.18.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

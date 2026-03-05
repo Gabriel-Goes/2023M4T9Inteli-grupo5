@@ -1,7 +1,8 @@
 import type { DeviceConfig, IPTSensorCatalogItem, IPTSensorTypeId, ParsedDeviceData, WsMessage } from "../types";
 
-export const WS_BASE_URL = "wss://ws-showroom-ibiraprj.linux.ipt.br";
-const IPT_DEVICE_ID = import.meta.env.VITE_IPT_DEVICE_ID?.trim() || undefined;
+export const WS_BASE_URL =
+  import.meta.env.VITE_WS_BASE_URL?.trim() || "wss://ws-showroom-ibiraprj.linux.ipt.br";
+const IPT_DEVICE_ID = import.meta.env.VITE_IPT_DEVICE_ID?.trim() || "ipt-local-uno";
 
 const IPT_SENSOR_TYPE_BY_ID: Record<string, IPTSensorTypeId> = {
   "0": "dt20b",

@@ -282,6 +282,36 @@ body {
   line-height: 1.4;
 }
 
+.sensor-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 0.86rem;
+}
+
+.sensor-table th,
+.sensor-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  vertical-align: top;
+}
+
+.sensor-table th {
+  color: #d9ecff;
+  font-weight: 600;
+}
+
+.sensor-table td {
+  color: var(--muted);
+}
+
+.sensor-table code {
+  font-family: "JetBrains Mono", monospace;
+  color: #d8ffe7;
+  font-size: 0.78rem;
+}
+
 @keyframes fade-up {
   from {
     opacity: 0;

@@ -1,6 +1,51 @@
-import type { DeviceConfig, ParsedDeviceData, WsMessage } from "../types";
+import type { DeviceConfig, IPTSensorCatalogItem, IPTSensorTypeId, ParsedDeviceData, WsMessage } from "../types";
 
 export const WS_BASE_URL = "wss://ws-showroom-ibiraprj.linux.ipt.br";
+const IPT_DEVICE_ID = import.meta.env.VITE_IPT_DEVICE_ID?.trim() || undefined;
+
+const IPT_SENSOR_TYPE_BY_ID: Record<string, IPTSensorTypeId> = {
+  "0": "dt20b",
+  "1": "load_cell",
+  "2": "bme280",
+  dt20b: "dt20b",
+  load_cell: "load_cell",
+  bme280: "bme280",
+  strain_gage: "strain_gage",
+  displacement: "dt20b",
+  lvdt: "dt20b"
+};
+
+const IPT_SENSOR_PROFILES: Record<IPTSensorTypeId, { label: string; unit: string; precision: number }> = {
+  dt20b: { label: "Deslocamento", unit: "mm", precision: 2 },
+  load_cell: { label: "Peso", unit: "kg", precision: 3 },
+  bme280: { label: "Temperatura", unit: "°C", precision: 2 },
+  strain_gage: { label: "Deformação", unit: "µε", precision: 0 },
+  unknown: { label: "Medição", unit: "", precision: 2 }
+};
+
+export const IPT_SENSOR_CATALOG: IPTSensorCatalogItem[] = [
+  {
+    id: "dt20b",
+    transportValue: "displacement_mm ou value",
+    transportUnit: "mm",
+    label: "Transdutor linear DT-20B",
+    expectedUnit: "mm"
+  },
+  {
+    id: "load_cell",
+    transportValue: "weight_kg ou value",
+    transportUnit: "kg",
+    label: "Célula de carga",
+    expectedUnit: "kg"
+  },
+  {
+    id: "bme280",
+    transportValue: "temperature / humidity",
+    transportUnit: "°C / %",
+    label: "BME280 (ambiente)",
+    expectedUnit: "°C e %"
+  }
+];
 
 const asNumber = (value: unknown): number | null => {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -13,6 +58,62 @@ const asNumber = (value: unknown): number | null => {
   }
 
   return null;
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | null => {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+};
+
+const unwrapValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return null;
+    }
+
+    const first = value[0];
+    const firstRecord = asRecord(first);
+    if (firstRecord && "value" in firstRecord) {
+      return firstRecord.value;
+    }
+
+    return first;
+  }
+
+  const record = asRecord(value);
+  if (record && "value" in record) {
+    return record.value;
+  }
+
+  return value;
+};
+
+const asString = (value: unknown): string | null => {
+  const unwrapped = unwrapValue(value);
+
+  if (typeof unwrapped === "string") {
+    const normalized = unwrapped.trim();
+    return normalized.length > 0 ? normalized : null;
+  }
+
+  if (typeof unwrapped === "number" && Number.isFinite(unwrapped)) {
+    return String(unwrapped);
+  }
+
+  return null;
+};
+
+const asPayloadNumber = (value: unknown): number | null => {
+  return asNumber(unwrapValue(value));
+};
+
+const resolveIptSensorTypeId = (value: unknown): IPTSensorTypeId => {
+  const raw = asString(value);
+  if (!raw) {
+    return "unknown";
+  }
+
+  const normalized = raw.toLowerCase();
+  return IPT_SENSOR_TYPE_BY_ID[normalized] ?? "unknown";
 };
 
 const resolveTimestamp = (message: WsMessage): number => {
@@ -118,8 +219,60 @@ const parseProantar = (message: WsMessage): ParsedDeviceData | null => {
   };
 };
 
-const parseIpt = (): ParsedDeviceData | null => {
-  return null;
+const parseIpt = (message: WsMessage): ParsedDeviceData | null => {
+  const payload = asRecord(message.payload);
+  if (!payload) {
+    return null;
+  }
+
+  const messageTimestamp = resolveTimestamp(message);
+  const payloadTimestamp = asString(payload.timestamp);
+  const parsedPayloadTimestamp = payloadTimestamp ? Date.parse(payloadTimestamp) : NaN;
+  const timestamp = Number.isFinite(parsedPayloadTimestamp) ? parsedPayloadTimestamp : messageTimestamp;
+
+  const sensorTypeId = resolveIptSensorTypeId(payload.sensor_type_id);
+  const profile = IPT_SENSOR_PROFILES[sensorTypeId];
+
+  const displacementMm = asPayloadNumber(payload.displacement_mm);
+  const weightKg = asPayloadNumber(payload.weight_kg);
+  const genericValue = asPayloadNumber(payload.value);
+  const temperature = asPayloadNumber(payload.temperature);
+  const humidity = asPayloadNumber(payload.humidity);
+
+  const customLabel = asString(payload.sensor_label);
+  const customUnit = asString(payload.unit);
+  const metrics: ParsedDeviceData["metrics"] = [];
+
+  if (displacementMm !== null) {
+    metrics.push({ label: "Deslocamento", value: displacementMm, unit: "mm", precision: 2 });
+  } else if (weightKg !== null) {
+    metrics.push({ label: "Peso", value: weightKg, unit: "kg", precision: 3 });
+  } else if (genericValue !== null) {
+    metrics.push({
+      label: customLabel ?? profile.label,
+      value: genericValue,
+      unit: customUnit ?? profile.unit,
+      precision: profile.precision
+    });
+  }
+
+  if (temperature !== null) {
+    metrics.push({ label: "Temperatura", value: temperature, unit: "°C", precision: 2 });
+  }
+
+  if (humidity !== null) {
+    metrics.push({ label: "Umidade", value: humidity, unit: "%", precision: 1 });
+  }
+
+  if (metrics.length === 0) {
+    return null;
+  }
+
+  return {
+    timestamp,
+    primary: metrics[0]?.value ?? null,
+    metrics
+  };
 };
 
 export const DEVICE_CONFIGS: DeviceConfig[] = [
@@ -161,10 +314,11 @@ export const DEVICE_CONFIGS: DeviceConfig[] = [
   },
   {
     slug: "ipt",
-    name: "IPT (novo)",
-    description: "Canal preparado para ESP32 multi-sensor",
+    name: "IPT (multi-sensor)",
+    description: "ESP32 com seleção de sensores por perfil de ensaio",
     route: "/devices",
     color: "#f6d365",
+    deviceId: IPT_DEVICE_ID,
     parse: parseIpt
   }
 ];

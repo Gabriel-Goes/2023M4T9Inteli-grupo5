@@ -29,12 +29,26 @@ export interface DeviceConfig {
   parse: (message: WsMessage) => ParsedDeviceData | null;
 }
 
+export type IPTSensorTypeId = "dt20b" | "load_cell" | "bme280" | "strain_gage" | "unknown";
+
 export interface IPTPayload {
-  sensor_type_id: string;
+  sensor_type_id?: string | number;
   sensor_label?: string;
-  value: number;
-  unit: string;
-  timestamp: string;
+  value?: number | string;
+  unit?: string;
+  timestamp?: string;
+  displacement_mm?: unknown;
+  weight_kg?: unknown;
+  temperature?: unknown;
+  humidity?: unknown;
+}
+
+export interface IPTSensorCatalogItem {
+  id: IPTSensorTypeId;
+  transportValue: string;
+  transportUnit: string;
+  label: string;
+  expectedUnit: string;
 }
 
 export type ConnectionStatus = "disabled" | "connecting" | "no-data" | "connected" | "error";

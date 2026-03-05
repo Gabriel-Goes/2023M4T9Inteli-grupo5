@@ -47,6 +47,7 @@ Integracao e contratos:
 - `src/config/devices.ts`: catalogo de dispositivos, endpoint WebSocket e parser por dispositivo.
 - `src/hooks/useDeviceStream.ts`: conexao WebSocket, parse, estado e reconexao com backoff.
 - `src/types.ts`: tipos de mensagem, metrica, estado e payload.
+- `src/vite-env.d.ts`: variaveis de ambiente do frontend (`VITE_IPT_DEVICE_ID`).
 
 ### 4.2 Documentacao operacional
 
@@ -99,7 +100,8 @@ Comportamento de reconexao:
 - `timestamp: string`
 
 Observacao:
-- O canal `ipt` esta preparado na UI, mas `parseIpt()` ainda retorna `null` (parser especifico pendente).
+- O parser `parseIpt()` agora aceita tanto contrato generico (`value` + `unit`) quanto formato compatível com Ubidots (`displacement_mm`, `weight_kg`, `temperature`, `humidity`).
+- O `deviceId` do canal IPT e injetado por ambiente via `VITE_IPT_DEVICE_ID`.
 
 ## 7) Como executar localmente
 
@@ -107,6 +109,12 @@ Observacao:
 cd src/ibirapitanga_copy
 npm install
 npm run dev -- --host 0.0.0.0 --port 5174
+```
+
+Para stream do dispositivo IPT:
+
+```bash
+VITE_IPT_DEVICE_ID=<uuid-do-device> npm run dev -- --host 0.0.0.0 --port 5174
 ```
 
 Acesso:
@@ -142,8 +150,8 @@ kill <PID>
 ## 10) Limitacoes conhecidas e proximos passos
 
 Limitacoes atuais:
-- Parser IPT nao implementado (`parseIpt` retorna `null`).
 - Dependencia de conectividade com o endpoint WebSocket externo.
+- Sem `VITE_IPT_DEVICE_ID`, o card IPT fica em estado `disabled` (esperado).
 
 Proximos passos sugeridos:
 1. Implementar parser do payload IPT real (ESP32 multi-sensor).

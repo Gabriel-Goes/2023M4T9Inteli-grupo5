@@ -41,4 +41,5 @@
 src/prototipo/s5/.env
 src/prototipo/s5/credentials.local.h
 
-# Planning workspace (.specs) is versioned
+# Planning workspace (.specs): ignore new files
+.specs/

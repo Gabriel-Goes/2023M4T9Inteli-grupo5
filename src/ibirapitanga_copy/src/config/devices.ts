@@ -23,7 +23,8 @@ export const LOCAL_PROXY_WS_BASE_URL =
   import.meta.env.VITE_LOCAL_PROXY_WS_BASE_URL?.trim() ||
   import.meta.env.VITE_IPT_WS_BASE_URL?.trim() ||
   resolveSameOriginWsBaseUrl();
-const IPT_DEVICE_ID = import.meta.env.VITE_IPT_DEVICE_ID?.trim() || "";
+const DEFAULT_IPT_OFFICIAL_DEVICE_ID = "0877945a-e3fe-46ea-bdf1-0105ac35d8e8";
+const IPT_DEVICE_ID = import.meta.env.VITE_IPT_DEVICE_ID?.trim() || DEFAULT_IPT_OFFICIAL_DEVICE_ID;
 
 const IPT_SENSOR_TYPE_BY_ID: Record<string, IPTSensorTypeId> = {
   "0": "dt20b",

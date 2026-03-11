@@ -2,7 +2,7 @@
 #include <HX711.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
-#include <UbidotsEsp32Mqtt.h>
+#include <PubSubClient.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 #include <WiFi.h>
@@ -11,20 +11,25 @@
 #if __has_include("credentials.local.h")
 #include "credentials.local.h"
 #else
-#error "Arquivo credentials.local.h ausente em src/prototipo/s5/. Defina: UBIDOTS_TOKEN, SSID e PW."
+#error "Arquivo credentials.local.h ausente em src/prototipo/s5/. Defina: SSID, PW, MQTT_HOST, MQTT_PORT, MQTT_TOPIC, MQTT_CLIENT_ID, MQTT_USERNAME e MQTT_PASSWORD."
 #endif
 
-const char *DEVICE_LABEL = "balancairon";
 const char *DISPLACEMENT_LABEL = "displacement_mm";
 const char *WEIGHT_LABEL = "weight_kg";
 const char *SENSOR_TYPE_ID_LABEL = "sensor_type_id";
+const char *SENSOR_LABEL = "sensor_label";
+const char *VALUE_LABEL = "value";
+const char *UNIT_LABEL = "unit";
 const char *TEMP_LABEL = "temperature";
 const char *HMDT_LABEL = "humidity";
 
 const unsigned long PUBLISH_FREQUENCY = 2000UL;
 const unsigned long SAMPLE_INTERVAL_MS = 1000UL;
+const unsigned long WIFI_CONNECT_TIMEOUT_MS = 15000UL;
+const unsigned long MQTT_RECONNECT_INTERVAL_MS = 3000UL;
 unsigned long publishTimer = 0;
 unsigned long sampleTimer = 0;
+unsigned long lastMqttReconnectAttempt = 0;
 
 const int PIN_RED = 15;
 const int PIN_GREEN = 2;
@@ -63,10 +68,11 @@ enum SensorType : uint8_t {
   SENSOR_COUNT = 2,
 };
 
-Ubidots ubidots(UBIDOTS_TOKEN);
 Adafruit_BME280 bme;
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 Preferences preferences;
+WiFiClient wifiClient;
+PubSubClient mqttClient(wifiClient);
 
 float lastMeasurement = 0.0f;
 float lastTemp = 0.0f;
@@ -238,6 +244,13 @@ const char *sensorTelemetryLabelByIndex(int sensorIndex) {
     return WEIGHT_LABEL;
   }
   return DISPLACEMENT_LABEL;
+}
+
+const char *sensorTelemetryNameByIndex(int sensorIndex) {
+  if (sensorIndex == SENSOR_LOAD_CELL) {
+    return "peso";
+  }
+  return "deslocamento";
 }
 
 float sensorWarnThresholdByIndex(int sensorIndex) {
@@ -490,30 +503,154 @@ void printSerialReadings(float value, float temp, float humidity) {
   Serial.println("%");
 }
 
-void ensureMqttConnected() {
-  if (ubidots.connected()) {
+bool isFiniteFloat(float value) {
+  return !isnan(value) && !isinf(value);
+}
+
+bool connectWifi(unsigned long timeoutMs) {
+  if (WiFi.status() == WL_CONNECTED) {
+    return true;
+  }
+
+  Serial.print("Conectando WiFi em ");
+  Serial.println(SSID);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(SSID, PW);
+
+  unsigned long startedAt = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - startedAt < timeoutMs) {
+    delay(250);
+    Serial.print(".");
+  }
+
+  Serial.println();
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.print("WiFi conectado. IP: ");
+    Serial.println(WiFi.localIP());
+    return true;
+  }
+
+  Serial.println("Falha ao conectar WiFi");
+  return false;
+}
+
+void ensureWifiConnected() {
+  if (WiFi.status() == WL_CONNECTED) {
     return;
   }
 
-  Serial.println("Erro na conexao MQTT");
+  Serial.println("WiFi desconectado");
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Erro conexao!");
+  lcd.print("WiFi desconect.");
   lcd.setCursor(0, 1);
   lcd.print("Reconectando...");
 
-  if (ubidots.connect()) {
-    Serial.println("MQTT reconectado");
+  if (connectWifi(WIFI_CONNECT_TIMEOUT_MS)) {
     showActiveSensorHeader();
-  } else {
-    Serial.println("Falha MQTT, nova tentativa no proximo ciclo");
+    return;
   }
 
-  delay(300);
+  lcd.setCursor(0, 1);
+  lcd.print("WiFi indisponiv.");
+}
+
+bool connectMqtt() {
+  if (WiFi.status() != WL_CONNECTED) {
+    return false;
+  }
+
+  Serial.print("Conectando MQTT em ");
+  Serial.print(MQTT_HOST);
+  Serial.print(":");
+  Serial.println(MQTT_PORT);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Conectando MQTT");
+  lcd.setCursor(0, 1);
+  lcd.print("Aguarde...");
+
+  bool connected = mqttClient.connect(MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD);
+  if (connected) {
+    Serial.println("MQTT conectado");
+    lastMqttReconnectAttempt = 0;
+    showActiveSensorHeader();
+  } else {
+    Serial.print("Falha MQTT, rc=");
+    Serial.println(mqttClient.state());
+  }
+
+  return connected;
+}
+
+void ensureMqttConnected() {
+  if (mqttClient.connected()) {
+    return;
+  }
+
+  if (WiFi.status() != WL_CONNECTED) {
+    return;
+  }
+
+  unsigned long now = millis();
+  if (lastMqttReconnectAttempt != 0 && now - lastMqttReconnectAttempt < MQTT_RECONNECT_INTERVAL_MS) {
+    return;
+  }
+
+  lastMqttReconnectAttempt = now;
+  connectMqtt();
+}
+
+String buildTelemetryPayload() {
+  const bool isLoadCell = activeSensorIndex == SENSOR_LOAD_CELL;
+  const int measurementPrecision = isLoadCell ? 3 : 2;
+
+  String payload;
+  payload.reserve(256);
+  payload += "{\"";
+  payload += SENSOR_TYPE_ID_LABEL;
+  payload += "\":\"";
+  payload += sensorIdByIndex(activeSensorIndex);
+  payload += "\",\"";
+  payload += SENSOR_LABEL;
+  payload += "\":\"";
+  payload += sensorTelemetryNameByIndex(activeSensorIndex);
+  payload += "\",\"";
+  payload += VALUE_LABEL;
+  payload += "\":";
+  payload += String(lastMeasurement, measurementPrecision);
+  payload += ",\"";
+  payload += UNIT_LABEL;
+  payload += "\":\"";
+  payload += sensorUnitByIndex(activeSensorIndex);
+  payload += "\",\"";
+  payload += sensorTelemetryLabelByIndex(activeSensorIndex);
+  payload += "\":";
+  payload += String(lastMeasurement, measurementPrecision);
+
+  if (isFiniteFloat(lastTemp)) {
+    payload += ",\"";
+    payload += TEMP_LABEL;
+    payload += "\":";
+    payload += String(lastTemp, 2);
+  }
+
+  if (isFiniteFloat(lastHumidity)) {
+    payload += ",\"";
+    payload += HMDT_LABEL;
+    payload += "\":";
+    payload += String(lastHumidity, 2);
+  }
+
+  payload += "}";
+  return payload;
 }
 
 void publishTelemetryIfDue() {
-  if (!ubidots.connected()) {
+  if (!mqttClient.connected()) {
     return;
   }
 
@@ -521,12 +658,16 @@ void publishTelemetryIfDue() {
     return;
   }
 
-  ubidots.add(sensorTelemetryLabelByIndex(activeSensorIndex), lastMeasurement);
-  ubidots.add(SENSOR_TYPE_ID_LABEL, (float)activeSensorIndex);
-  ubidots.add(TEMP_LABEL, lastTemp);
-  ubidots.add(HMDT_LABEL, lastHumidity);
-  ubidots.publish(DEVICE_LABEL);
-  publishTimer = millis();
+  String payload = buildTelemetryPayload();
+  if (mqttClient.publish(MQTT_TOPIC, payload.c_str())) {
+    Serial.print("MQTT publish ok: ");
+    Serial.println(payload);
+    publishTimer = millis();
+    return;
+  }
+
+  Serial.print("Falha ao publicar MQTT, rc=");
+  Serial.println(mqttClient.state());
 }
 
 void readSensorsIfDue() {
@@ -584,7 +725,7 @@ void setup() {
 
   lcd.clear();
   lcd.print("conectando wifi");
-  ubidots.connectToWifi(SSID, PW);
+  connectWifi(WIFI_CONNECT_TIMEOUT_MS);
 
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -592,9 +733,10 @@ void setup() {
   lcd.setCursor(0, 1);
   lcd.print("servidor...");
 
-  ubidots.setCallback(callback);
-  ubidots.setup();
-  if (!ubidots.connect()) {
+  mqttClient.setServer(MQTT_HOST, MQTT_PORT);
+  mqttClient.setCallback(callback);
+  mqttClient.setBufferSize(512);
+  if (!connectMqtt()) {
     Serial.println("Falha ao conectar MQTT no setup");
   }
 
@@ -619,10 +761,11 @@ void loop() {
   handleCalibrationButton();
 
   readSensorsIfDue();
+  ensureWifiConnected();
   ensureMqttConnected();
   publishTelemetryIfDue();
 
-  if (ubidots.connected()) {
-    ubidots.loop();
+  if (mqttClient.connected()) {
+    mqttClient.loop();
   }
 }

@@ -5,7 +5,7 @@ Este documento consolida a migracao do S5 de peso (kg) para deslocamento (mm) e 
 ## Visao executiva
 
 - Sensor principal atual: transdutor linear DT-20B (0-20 mm).
-- Unidade principal do sistema: `mm` (LCD, serial e Ubidots).
+- Unidade principal do sistema: `mm` (LCD, serial e dashboard Ibirapitanga).
 - Botao azul: calibracao de zero e span.
 - Botao vermelho: selecao de sensor no clique curto; LCD on/off no clique longo.
 - Indicacao local: LED RGB por faixas de deslocamento.
@@ -77,7 +77,7 @@ Formula:
 2. Adotada logica de deslocamento (`LinearDisplacementSensor`) em `mm`.
 3. Botao ZERO passou a operar calibracao de dois pontos em campo.
 4. Saidas de tela e serial atualizadas para `mm`.
-5. Telemetria principal no Ubidots trocada para `displacement_mm`.
+5. Telemetria principal migrada para MQTT oficial da Ibirapitanga com `displacement_mm` ou `weight_kg` conforme o sensor ativo.
 6. Limiares de LED adaptados para faixa de deslocamento.
 7. `microSD.ino` movido para `src/prototipo/s5/experimentos/` para evitar conflito de compilacao.
 
@@ -94,10 +94,11 @@ Constantes usadas:
 
 ## Telemetria
 
-- Variavel principal Ubidots: label depende do sensor ativo (`displacement_mm` ou `weight_kg`)
-- Variavel de identificacao do perfil ativo: `sensor_type_id`
+- Broker MQTT oficial: `mqtt-protocol-ibirahml.linux.ipt.br:1883`
+- Topico do device oficial: `/v1/devices/0877945a-e3fe-46ea-bdf1-0105ac35d8e8/telemetry`
+- Payload principal: `sensor_type_id`, `sensor_label`, `value`, `unit`
+- Campos dedicados por sensor: `displacement_mm` ou `weight_kg`
 - Variaveis adicionais: `temperature`, `humidity`
-- Device label atual: `balancairon`
 
 ## Limiares de alerta (LED)
 
@@ -111,7 +112,7 @@ Constantes usadas:
 2. Confirmar leitura proxima de 0 mm no serial/LCD.
 3. Aplicar deslocamento conhecido e conferir leitura em mm.
 4. Para span, segurar ZERO por 3s, ajustar para referencia de 20 mm e soltar para gravar.
-5. Verificar publicacao em `displacement_mm` no Ubidots.
+5. Verificar publicacao MQTT no device oficial da Ibirapitanga e atualizacao em `/dashboards`.
 6. Verificar transicao de LED em normal/aviso/critico.
 
 ## Pendencias de identificacao fisica

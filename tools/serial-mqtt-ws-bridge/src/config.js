@@ -47,6 +47,7 @@ export const config = {
 
   mqttHost,
   mqttPort: parseIntEnv("MQTT_PORT", 1883),
+  mqttClientId: parseStringEnv("MQTT_CLIENT_ID", ""),
   mqttUsername: parseStringEnv("MQTT_USERNAME", ""),
   mqttPassword: parseStringEnv("MQTT_PASSWORD", ""),
   mqttTopic,

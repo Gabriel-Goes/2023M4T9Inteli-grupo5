@@ -31,6 +31,7 @@ wsServer.on("listening", () => {
 
 const mqttUrl = `mqtt://${config.mqttHost}:${config.mqttPort}`;
 const mqttClient = mqtt.connect(mqttUrl, {
+  clientId: config.mqttClientId || undefined,
   username: config.mqttUsername || undefined,
   password: config.mqttPassword || undefined,
   reconnectPeriod: 2000

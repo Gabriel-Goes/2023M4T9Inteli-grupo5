@@ -2,7 +2,7 @@
 
 Bridge local para testes do fluxo:
 
-`/dev/ttyUSB9 -> MQTT -> ibirapitanga_copy`
+`/dev/ttyUSB0 -> MQTT -> ibirapitanga_copy`
 
 ## O que ele faz
 
@@ -27,13 +27,13 @@ npm install
 ## Variáveis de ambiente
 
 ```bash
-export SERIAL_PORT=/dev/ttyUSB9
+export SERIAL_PORT=/dev/ttyUSB0
 export SERIAL_BAUD=115200
 
-export MQTT_HOST=<host-ibirapitanga>
+export MQTT_HOST=localhost
 export MQTT_PORT=1883
-export MQTT_USERNAME=<usuario>
-export MQTT_PASSWORD=<senha>
+export MQTT_USERNAME=
+export MQTT_PASSWORD=
 export MQTT_TOPIC=ipt/lab/uno/telemetry
 export MQTT_QOS=0
 
@@ -64,10 +64,17 @@ Servidor WS local:
 No `src/ibirapitanga_copy`:
 
 ```bash
-VITE_WS_BASE_URL=ws://localhost:8787 \
+VITE_OFFICIAL_WS_BASE_URL=wss://ws-showroom-ibiraprj.linux.ipt.br \
+VITE_IPT_WS_BASE_URL=ws://localhost:8787 \
 VITE_IPT_DEVICE_ID=ipt-local-uno \
 npm run dev -- --host 0.0.0.0 --port 5174
 ```
+
+## Modo hibrido recomendado
+
+- Sensores legados continuam no WSS oficial.
+- Sensor IPT novo usa o broker local + bridge local.
+- Quando o acesso oficial MQTT for liberado, trocar apenas `MQTT_HOST`, `MQTT_USERNAME` e `MQTT_PASSWORD`.
 
 ## Payload gerado (exemplo)
 

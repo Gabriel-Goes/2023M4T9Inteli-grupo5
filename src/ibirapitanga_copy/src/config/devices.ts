@@ -1,8 +1,29 @@
-import type { DeviceConfig, IPTSensorCatalogItem, IPTSensorTypeId, ParsedDeviceData, WsMessage } from "../types";
+import type {
+  DeviceConfig,
+  IPTSensorCatalogItem,
+  IPTSensorTypeId,
+  OfficialDeviceSummary,
+  ParsedDeviceData,
+  WsMessage
+} from "../types";
 
-export const WS_BASE_URL =
-  import.meta.env.VITE_WS_BASE_URL?.trim() || "wss://ws-showroom-ibiraprj.linux.ipt.br";
-const IPT_DEVICE_ID = import.meta.env.VITE_IPT_DEVICE_ID?.trim() || "ipt-local-uno";
+export const OFFICIAL_WS_BASE_URL =
+  import.meta.env.VITE_OFFICIAL_WS_BASE_URL?.trim() || "wss://ws-showroom-ibiraprj.linux.ipt.br";
+
+const resolveSameOriginWsBaseUrl = (): string => {
+  if (typeof window === "undefined") {
+    return "ws://localhost:5174";
+  }
+
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${window.location.host}`;
+};
+
+export const LOCAL_PROXY_WS_BASE_URL =
+  import.meta.env.VITE_LOCAL_PROXY_WS_BASE_URL?.trim() ||
+  import.meta.env.VITE_IPT_WS_BASE_URL?.trim() ||
+  resolveSameOriginWsBaseUrl();
+const IPT_DEVICE_ID = import.meta.env.VITE_IPT_DEVICE_ID?.trim() || "";
 
 const IPT_SENSOR_TYPE_BY_ID: Record<string, IPTSensorTypeId> = {
   "0": "dt20b",
@@ -120,6 +141,23 @@ const resolveIptSensorTypeId = (value: unknown): IPTSensorTypeId => {
 const resolveTimestamp = (message: WsMessage): number => {
   const createdAt = typeof message.created_at === "string" ? Date.parse(message.created_at) : NaN;
   return Number.isFinite(createdAt) ? createdAt : Date.now();
+};
+
+const serializePayloadPreview = (payload: unknown): string | null => {
+  if (payload === undefined) {
+    return null;
+  }
+
+  try {
+    const serialized = JSON.stringify(payload, null, 2);
+    if (!serialized) {
+      return null;
+    }
+
+    return serialized.length > 640 ? `${serialized.slice(0, 640)}\n...` : serialized;
+  } catch {
+    return null;
+  }
 };
 
 const parseBarulhometro = (message: WsMessage): ParsedDeviceData | null => {
@@ -276,12 +314,31 @@ const parseIpt = (message: WsMessage): ParsedDeviceData | null => {
   };
 };
 
-export const DEVICE_CONFIGS: DeviceConfig[] = [
+const parseRawPayload = (message: WsMessage): ParsedDeviceData => {
+  return {
+    timestamp: resolveTimestamp(message),
+    primary: null,
+    metrics: [],
+    rawPayload: serializePayloadPreview(message.payload)
+  };
+};
+
+const withRawFallback = (parser: DeviceConfig["parse"]): DeviceConfig["parse"] => {
+  return (message) => parser(message) ?? parseRawPayload(message);
+};
+
+const colorFromSeed = (seed: string): string => {
+  const palette = ["#ff8a00", "#26a0da", "#42e695", "#f857a6", "#f6d365", "#7bdff2"];
+  const hash = [...seed].reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return palette[hash % palette.length];
+};
+
+export const SHOWROOM_DEVICE_CONFIGS: DeviceConfig[] = [
   {
     slug: "barulhometro",
     name: "Barulhometro",
     description: "Medição de ruído em tempo real",
-    route: "/dashboard",
+    route: "/showroom",
     color: "#ff8a00",
     deviceId: "c5732948-cd24-42eb-8239-159d8c281ddd",
     parse: parseBarulhometro
@@ -290,7 +347,7 @@ export const DEVICE_CONFIGS: DeviceConfig[] = [
     slug: "aup",
     name: "AUP",
     description: "Temperatura, umidade, vento e chuva",
-    route: "/dashboard",
+    route: "/showroom",
     color: "#26a0da",
     deviceId: "d434d12b-1a5d-4227-aca6-9d236205475b",
     parse: parseAup
@@ -299,7 +356,7 @@ export const DEVICE_CONFIGS: DeviceConfig[] = [
     slug: "proantar",
     name: "Proantar",
     description: "Temperatura de solo antártico",
-    route: "/dashboard",
+    route: "/showroom",
     color: "#42e695",
     deviceId: "381d40d1-e63c-484b-bf94-3595f3c296ca",
     parse: parseProantar
@@ -308,7 +365,7 @@ export const DEVICE_CONFIGS: DeviceConfig[] = [
     slug: "callithrix",
     name: "Callithrix",
     description: "Temperatura e umidade de campo",
-    route: "/dashboard",
+    route: "/showroom",
     color: "#f857a6",
     deviceId: "59e0c2fa-bd5f-4080-918a-0570fb9c5dfa",
     parse: parseCallithrix
@@ -316,14 +373,34 @@ export const DEVICE_CONFIGS: DeviceConfig[] = [
   {
     slug: "ipt",
     name: "IPT (multi-sensor)",
-    description: "ESP32 com seleção de sensores por perfil de ensaio",
-    route: "/devices",
+    description: "Device oficial do IPT na plataforma Ibirapitanga",
+    route: "/showroom",
     color: "#f6d365",
     deviceId: IPT_DEVICE_ID,
+    wsBaseUrl: LOCAL_PROXY_WS_BASE_URL,
     parse: parseIpt
   }
 ];
 
+const SHOWROOM_DEVICE_BY_ID = new Map(
+  SHOWROOM_DEVICE_CONFIGS.filter((device) => Boolean(device.deviceId)).map((device) => [device.deviceId as string, device])
+);
+
+export const createOfficialDeviceConfig = (device: OfficialDeviceSummary): DeviceConfig => {
+  const known = SHOWROOM_DEVICE_BY_ID.get(device.id);
+
+  return {
+    slug: device.id,
+    name: device.name,
+    description: device.description?.trim() || known?.description || "Device oficial listado via API da Ibirapitanga.",
+    route: "/dashboards",
+    color: known?.color || colorFromSeed(device.id),
+    deviceId: device.id,
+    wsBaseUrl: LOCAL_PROXY_WS_BASE_URL,
+    parse: withRawFallback(known?.parse ?? parseRawPayload)
+  };
+};
+
 export const findDevice = (slug: DeviceConfig["slug"]): DeviceConfig | undefined => {
-  return DEVICE_CONFIGS.find((device) => device.slug === slug);
+  return SHOWROOM_DEVICE_CONFIGS.find((device) => device.slug === slug);
 };

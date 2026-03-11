@@ -8,7 +8,7 @@ const statusText: Record<ConnectionStatus, string> = {
   connecting: "Conectando...",
   connected: "Conectado com a plataforma Ibirapitanga",
   "no-data": "Aguardando o recebimento de dados...",
-  disabled: "Aguardando integração do novo dispositivo IPT",
+  disabled: "Stream ainda não configurado",
   error: "Falha de conexão"
 };
 

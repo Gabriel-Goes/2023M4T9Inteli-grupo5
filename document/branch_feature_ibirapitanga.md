@@ -1,166 +1,114 @@
 # Documentacao Tecnica da Branch `feature/ibirapitanga`
 
-Data de referencia: 2026-03-05  
+Data de referencia: 2026-03-10  
 Base de comparacao: `origin/main...feature/ibirapitanga`
 
 ## 1) Objetivo
 
-Consolidar o que foi entregue nesta branch para disponibilizar uma copia local da interface Ibirapitanga no ambiente IPT, com visualizacao em tempo real via WebSocket e uma rota preparada para o canal do dispositivo IPT multi-sensor.
+Consolidar a evolucao da branch que agora tem dois blocos claros:
 
-## 2) Escopo desta branch
+- uma UI local (`ibirapitanga_copy`) para iterar dashboards;
+- um proxy local para consumir o backend oficial da Ibirapitanga sem expor segredos no navegador.
 
-Inclui:
-- Novo frontend local em `src/ibirapitanga_copy` (Vite + React + TypeScript).
-- Plano de implantacao em rede interna do IPT.
-- Ajustes de documentacao relacionados a operacao local.
+## 2) Fluxo principal atual
 
-Nao inclui:
-- Mudancas de firmware ESP32 nesta branch.
-- Alteracoes de backend/infra da plataforma oficial.
+Arquitetura alvo da branch:
 
-## 3) Delta resumido em relacao ao `main`
-
-Resumo:
-- 23 arquivos alterados/adicionados.
-- 3045 linhas adicionadas.
-
-Commits principais:
-- `feat(ibirapitanga): add local dashboard copy with live websocket streams`
-- `docs(ibirapitanga): add IPT machine rollout plan for local network access`
-
-## 4) Inventario tecnico das alteracoes
-
-### 4.1 Frontend local (`src/ibirapitanga_copy`)
-
-Arquivos de base:
-- `package.json`, `package-lock.json`, `vite.config.ts`, `tsconfig*.json`, `index.html`
-
-Aplicacao:
-- `src/main.tsx`: bootstrap React Router.
-- `src/App.tsx`: roteamento principal.
-- `src/pages/DashboardPage.tsx`: visao de stream em tempo real.
-- `src/pages/DevicesPage.tsx`: inventario/estado dos dispositivos.
-- `src/components/*`: cards, navbar, badges e sparkline.
-- `src/styles.css`: estilos visuais.
-
-Integracao e contratos:
-- `src/config/devices.ts`: catalogo de dispositivos, endpoint WebSocket e parser por dispositivo.
-- `src/hooks/useDeviceStream.ts`: conexao WebSocket, parse, estado e reconexao com backoff.
-- `src/types.ts`: tipos de mensagem, metrica, estado e payload.
-- `src/vite-env.d.ts`: variaveis de ambiente do frontend (`VITE_IPT_DEVICE_ID`).
-
-### 4.2 Documentacao operacional
-
-- `document/plano_implantacao_ibirapitanga_ipt.md`: runbook de subida e acesso em rede.
-- `src/ibirapitanga_copy/README.md`: guia rapido local.
-- `README.md` (raiz): ponte para documentacao tecnica atual.
-
-## 5) Arquitetura funcional (visao objetiva)
-
-Fluxo:
-1. Usuario abre `/dashboard` ou `/devices`.
-2. A pagina seleciona os dispositivos configurados.
-3. Cada dispositivo com `deviceId` abre WebSocket em `wss://ws-showroom-ibiraprj.linux.ipt.br/nrt/{deviceId}`.
-4. As mensagens recebidas sao parseadas por funcao especifica do dispositivo.
-5. O estado da UI (status, metricas, historico) e atualizado em tempo real.
-
-Comportamento de reconexao:
-- Backoff exponencial com jitter.
-- Limites configurados:
-- minimo: 1000 ms
-- maximo: 30000 ms
-
-## 6) Interfaces publicas documentadas
-
-### 6.1 Rotas HTTP da app local
-
-- `/dashboard`
-- `/devices`
-- `/` redireciona para `/dashboard`
-
-### 6.2 Contrato de stream
-
-- Base: `wss://ws-showroom-ibiraprj.linux.ipt.br`
-- Endpoint por dispositivo: `/nrt/{deviceId}`
-- Formato base recebido:
-- `device_id?: string`
-- `created_at?: string`
-- `payload?: Record<string, unknown>`
-
-### 6.3 Tipos relevantes (`src/types.ts`)
-
-- `DeviceSlug`: `barulhometro | aup | proantar | callithrix | ipt`
-- `ConnectionStatus`: `disabled | connecting | no-data | connected | error`
-- `DeviceStreamState`: estado consolidado da conexao e metricas.
-- `IPTPayload`:
-- `sensor_type_id: string`
-- `sensor_label?: string`
-- `value: number`
-- `unit: string`
-- `timestamp: string`
+1. `ESP32` publica no broker MQTT oficial da Ibirapitanga.
+2. O backend oficial registra o device e disponibiliza sua leitura.
+3. O proxy local usa `JWT` de usuario para consultar a API oficial.
+4. O proxy resolve a `device_api_key` do device em `GET /devices/{device_id}/api-keys`.
+5. O proxy abre `wss://ws-ibirahml.linux.ipt.br/v1/devices/{device_id}/telemetry`.
+6. O frontend local consome o proxy em same-origin via `/api/*` e `/nrt/{deviceId}`.
 
 Observacao:
-- O parser `parseIpt()` agora aceita tanto contrato generico (`value` + `unit`) quanto formato compatível com Ubidots (`displacement_mm`, `weight_kg`, `temperature`, `humidity`).
-- O `deviceId` do canal IPT e injetado por ambiente via `VITE_IPT_DEVICE_ID`.
 
-## 7) Como executar localmente
+- o bridge serial/MQTT anterior continua no repositorio apenas como fallback.
+
+## 3) Inventario tecnico relevante
+
+### 3.1 Frontend local
+
+- `src/ibirapitanga_copy`
+- Rotas:
+  - `/dashboards`
+  - `/showroom`
+  - `/devices`
+
+### 3.2 Proxy oficial
+
+- `tools/ibirapitanga-official-proxy`
+- Endpoints locais:
+  - `GET /api/health`
+  - `GET /api/devices?page=N`
+  - `GET /api/dashboards?page=N`
+  - `WS /nrt/{deviceId}`
+
+### 3.3 Fallback legado
+
+- `tools/serial-mqtt-ws-bridge`
+- `tools/local-mqtt-broker`
+
+Esses componentes permanecem como contingencia e nao como fluxo principal.
+
+## 4) Rotas e contratos publicos
+
+### 4.1 UI local
+
+- `/` redireciona para `/dashboards`
+- `/dashboard` redireciona para `/showroom`
+- `/dashboards`
+- `/showroom`
+- `/devices`
+
+### 4.2 API local do proxy
+
+- `GET /api/health`
+- `GET /api/devices?page=N`
+- `GET /api/dashboards?page=N`
+- `WS /nrt/{deviceId}`
+
+### 4.3 Tipos relevantes no frontend
+
+- `DeviceConfig`
+- `DeviceStreamState`
+- `OfficialDeviceSummary`
+- `PaginatedResponse<T>`
+- `ConnectionStatus = disabled | connecting | no-data | connected | error`
+
+Observacao:
+
+- quando o payload oficial ainda nao tem parser dedicado, a UI mostra fallback com `payload` bruto e status de conexao.
+
+## 5) Como subir o ambiente
+
+Arquivos locais de ambiente:
+
+- `tools/ibirapitanga-official-proxy/.env.local`
+- `src/ibirapitanga_copy/.env.local`
+
+Comando unico:
 
 ```bash
-cd src/ibirapitanga_copy
-npm install
-npm run dev -- --host 0.0.0.0 --port 5174
-```
-
-Para stream do dispositivo IPT:
-
-```bash
-VITE_IPT_DEVICE_ID=<uuid-do-device> npm run dev -- --host 0.0.0.0 --port 5174
+./scripts/dev-ibirapitanga.sh
 ```
 
 Acesso:
-- `http://localhost:5174/dashboard`
+
+- `http://localhost:5174/dashboards`
+- `http://localhost:5174/showroom`
 - `http://localhost:5174/devices`
 
-Para acesso em rede, usar o IP da maquina:
-- `http://IP_DA_MAQUINA:5174/dashboard`
-- `http://IP_DA_MAQUINA:5174/devices`
+## 6) Validacoes feitas nesta linha de trabalho
 
-## 8) Validacao tecnica recomendada
+- `GET /devices?page=1` na HML respondeu com o device `EnsaioProvaCarga`
+- `GET /devices/{device_id}/api-keys` respondeu com sucesso para o device oficial do IPT
+- o frontend local builda com as novas rotas e o consumo do proxy oficial
+- o proxy oficial sobe localmente e responde `GET /api/health`
 
-Checklist minimo:
-1. Rotas `/dashboard` e `/devices` respondem sem erro.
-2. Cards de dispositivos com `deviceId` mudam de estado (`connecting`, `no-data`, `connected`) conforme stream.
-3. Historico (sparkline) recebe pontos quando ha `primary` valido.
-4. Reconexao ocorre automaticamente apos queda de socket.
-5. Dispositivo `ipt` aparece na tela de devices como canal reservado/preparado.
+## 7) Referencias cruzadas
 
-## 9) Operacao e seguranca
-
-Durante demonstracoes em rede interna:
-- Executar com host/porta explicitos.
-- Encerrar o processo quando nao estiver em uso.
-- Evitar exposicao permanente da porta no host.
-
-Comandos uteis:
-```bash
-ss -ltnp '( sport = :5174 )'
-kill <PID>
-```
-
-## 10) Limitacoes conhecidas e proximos passos
-
-Limitacoes atuais:
-- Dependencia de conectividade com o endpoint WebSocket externo.
-- Sem `VITE_IPT_DEVICE_ID`, o card IPT fica em estado `disabled` (esperado).
-
-Proximos passos sugeridos:
-1. Implementar parser do payload IPT real (ESP32 multi-sensor).
-2. Definir validacoes de schema por sensor.
-3. Criar modo de fallback visual quando stream estiver indisponivel.
-4. Definir porta/config por variavel de ambiente para operacao controlada.
-
-## 11) Referencias cruzadas
-
-- Runbook de implantacao: `document/plano_implantacao_ibirapitanga_ipt.md`
-- Guia rapido local: `src/ibirapitanga_copy/README.md`
-- Contexto historico ESP32: `document/alteracoes_esp32_2026-02-26.md`
+- Resumo pratico do fluxo oficial: `document/ibirapitanga_hml_fluxo_oficial.md`
+- Integracao oficial HML: `document/ibirapitanga_hml_dispositivos_e_nrt.md`
+- Guia rapido da app local: `src/ibirapitanga_copy/README.md`
+- Runbook de implantacao em rede IPT: `document/plano_implantacao_ibirapitanga_ipt.md`

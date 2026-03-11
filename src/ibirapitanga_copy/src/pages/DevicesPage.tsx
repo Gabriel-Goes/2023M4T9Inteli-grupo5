@@ -1,4 +1,4 @@
-import { DEVICE_CONFIGS, IPT_SENSOR_CATALOG } from "../config/devices";
+import { IPT_SENSOR_CATALOG, SHOWROOM_DEVICE_CONFIGS } from "../config/devices";
 import { DeviceCard } from "../components/DeviceCard";
 
 export const DevicesPage = () => {
@@ -13,7 +13,7 @@ export const DevicesPage = () => {
       </header>
 
       <div className="device-list">
-        {DEVICE_CONFIGS.map((device) => (
+        {SHOWROOM_DEVICE_CONFIGS.map((device) => (
           <DeviceCard key={device.slug} device={device} compact />
         ))}
       </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { WS_BASE_URL } from "../config/devices";
+import { OFFICIAL_WS_BASE_URL } from "../config/devices";
 import type { ConnectionStatus, DeviceConfig, DeviceStreamState, WsMessage } from "../types";
 
 const MIN_RETRY_MS = 1000;
@@ -19,6 +19,7 @@ export const useDeviceStream = (device: DeviceConfig): DeviceStreamState => {
   const [history, setHistory] = useState<number[]>([]);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [rawPayload, setRawPayload] = useState<string | null>(null);
 
   const retryAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<number | null>(null);
@@ -31,6 +32,7 @@ export const useDeviceStream = (device: DeviceConfig): DeviceStreamState => {
       setHistory([]);
       setError(null);
       setUpdatedAt(null);
+      setRawPayload(null);
       return undefined;
     }
 
@@ -47,7 +49,8 @@ export const useDeviceStream = (device: DeviceConfig): DeviceStreamState => {
       clearReconnectTimer();
       setStatus("connecting");
 
-      const wsUrl = `${WS_BASE_URL}/nrt/${device.deviceId}`;
+      const wsBaseUrl = device.wsBaseUrl ?? OFFICIAL_WS_BASE_URL;
+      const wsUrl = `${wsBaseUrl}/nrt/${device.deviceId}`;
       const socket = new WebSocket(wsUrl);
       socketRef.current = socket;
 
@@ -60,6 +63,14 @@ export const useDeviceStream = (device: DeviceConfig): DeviceStreamState => {
       socket.onmessage = (event) => {
         try {
           const parsed = JSON.parse(String(event.data)) as WsMessage;
+          if (parsed && typeof parsed === "object" && "proxy_error" in parsed) {
+            const proxyError: string = typeof (parsed as Record<string, unknown>).proxy_error === "string"
+              ? String((parsed as Record<string, unknown>).proxy_error)
+              : "Falha no proxy local";
+            setError(proxyError);
+            setStatus("error");
+            return;
+          }
           const result = device.parse(parsed);
           if (!result) {
             return;
@@ -67,6 +78,7 @@ export const useDeviceStream = (device: DeviceConfig): DeviceStreamState => {
 
           setMetrics(result.metrics);
           setUpdatedAt(result.timestamp);
+          setRawPayload(result.rawPayload ?? null);
 
           const primary = result.primary;
           if (primary !== null && Number.isFinite(primary)) {
@@ -85,9 +97,13 @@ export const useDeviceStream = (device: DeviceConfig): DeviceStreamState => {
         setError("Falha na comunicação WebSocket");
       };
 
-      socket.onclose = () => {
+      socket.onclose = (event) => {
         if (manualClose) {
           return;
+        }
+
+        if (event.reason) {
+          setError(event.reason);
         }
 
         const delay = backoffDelay(retryAttemptRef.current);
@@ -108,7 +124,7 @@ export const useDeviceStream = (device: DeviceConfig): DeviceStreamState => {
         socketRef.current.close();
       }
     };
-  }, [device]);
+  }, [device.deviceId, device.parse, device.wsBaseUrl]);
 
   return useMemo(
     () => ({
@@ -116,8 +132,9 @@ export const useDeviceStream = (device: DeviceConfig): DeviceStreamState => {
       metrics,
       history,
       updatedAt,
-      error
+      error,
+      rawPayload
     }),
-    [error, history, metrics, status, updatedAt]
+    [error, history, metrics, rawPayload, status, updatedAt]
   );
 };

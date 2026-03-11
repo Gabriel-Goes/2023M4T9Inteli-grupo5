@@ -1,41 +1,53 @@
 # Ibirapitanga Copy (Localhost)
 
-Frontend local para evolucao de UI/UX e validacao de integracao com stream em tempo real da plataforma Ibirapitanga.
+Frontend local para evolucao de UI/UX sobre o backend oficial da plataforma Ibirapitanga.
 
-## Rodando localmente
+## Fluxo principal
+
+- `ESP32 -> MQTT oficial -> backend Ibirapitanga`
+- `ibirapitanga_copy -> proxy oficial local -> API/WS oficial`
+
+O bridge serial/MQTT antigo continua apenas como fallback de contingencia.
+
+## Subida rapida
+
+1. Configure `tools/ibirapitanga-official-proxy/.env.local`
+2. Configure `src/ibirapitanga_copy/.env.local`
+3. Rode:
 
 ```bash
-cd src/ibirapitanga_copy
-npm install
-npm run dev -- --host 0.0.0.0 --port 5174
+./scripts/dev-ibirapitanga.sh
 ```
 
 App:
-- `http://localhost:5174/dashboard`
+
+- `http://localhost:5174/dashboards`
+- `http://localhost:5174/showroom`
 - `http://localhost:5174/devices`
 
-## Canal IPT (novo sensores)
+## Arquivos de ambiente
 
-Para conectar o card `IPT (multi-sensor)` ao stream real, defina o `deviceId` via variavel de ambiente:
+Frontend:
 
 ```bash
-VITE_IPT_DEVICE_ID=<uuid-do-device> npm run dev -- --host 0.0.0.0 --port 5174
+cp src/ibirapitanga_copy/.env.example src/ibirapitanga_copy/.env.local
 ```
 
-Para usar bridge local (`serial -> MQTT -> WS`) durante testes:
+Proxy:
 
 ```bash
-VITE_WS_BASE_URL=ws://localhost:8787 \
-VITE_IPT_DEVICE_ID=ipt-local-uno \
-npm run dev -- --host 0.0.0.0 --port 5174
+cp tools/ibirapitanga-official-proxy/.env.example tools/ibirapitanga-official-proxy/.env.local
 ```
 
 ## Rotas
 
-- `/dashboard`: visualizacao de stream em tempo real.
-- `/devices`: inventario de dispositivos e canal IPT reservado.
+- `/dashboards`: nova pagina ligada ao backend oficial.
+- `/showroom`: vitrine local com cards legados e referencia visual.
+- `/devices`: inventario tecnico e contratos de parser.
 
-## Documentacao tecnica completa
+## Documentacao tecnica
 
+- Resumo pratico do fluxo oficial: `document/ibirapitanga_hml_fluxo_oficial.md`
 - Documento mestre da branch: `document/branch_feature_ibirapitanga.md`
+- Integracao oficial HML: `document/ibirapitanga_hml_dispositivos_e_nrt.md`
 - Runbook de implantacao em rede IPT: `document/plano_implantacao_ibirapitanga_ipt.md`

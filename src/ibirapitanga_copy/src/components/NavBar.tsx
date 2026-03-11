@@ -9,7 +9,8 @@ export const NavBar = () => {
       </div>
 
       <nav>
-        <NavLink to="/dashboard" className={({ isActive }) => (isActive ? "active" : "")}>Dashboard</NavLink>
+        <NavLink to="/dashboards" className={({ isActive }) => (isActive ? "active" : "")}>Dashboards</NavLink>
+        <NavLink to="/showroom" className={({ isActive }) => (isActive ? "active" : "")}>Showroom</NavLink>
         <NavLink to="/devices" className={({ isActive }) => (isActive ? "active" : "")}>Dispositivos</NavLink>
       </nav>
     </header>

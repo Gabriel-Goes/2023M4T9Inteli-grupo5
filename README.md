@@ -69,7 +69,9 @@ LINK PARA VÍDEO DA SOLUÇÃO FINAL:
 ## 🧭 Documentação técnica atual (branches recentes)
 
 - Branch `feature/ibirapitanga` (frontend local + stream em tempo real):
+  - Resumo prático do fluxo oficial: `document/ibirapitanga_hml_fluxo_oficial.md`
   - Documento mestre: `document/branch_feature_ibirapitanga.md`
+  - Integração oficial HML: `document/ibirapitanga_hml_dispositivos_e_nrt.md`
   - Runbook de implantação em rede IPT: `document/plano_implantacao_ibirapitanga_ipt.md`
   - Guia rápido do app local: `src/ibirapitanga_copy/README.md`
 

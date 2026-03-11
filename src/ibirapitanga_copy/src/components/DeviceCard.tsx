@@ -60,6 +60,12 @@ export const DeviceCard = ({ device, compact = false }: DeviceCardProps) => {
             <time>Sem eventos recebidos</time>
           )}
           {stream.error && <small>{stream.error}</small>}
+          {stream.rawPayload && (
+            <details className="payload-preview">
+              <summary>Último payload bruto</summary>
+              <pre>{stream.rawPayload}</pre>
+            </details>
+          )}
         </footer>
       )}
     </article>

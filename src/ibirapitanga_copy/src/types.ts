@@ -1,4 +1,4 @@
-export type DeviceSlug = "barulhometro" | "aup" | "proantar" | "callithrix" | "ipt";
+export type DeviceSlug = string;
 
 export interface WsMessage<TPayload = Record<string, unknown>> {
   device_id?: string;
@@ -17,6 +17,7 @@ export interface ParsedDeviceData {
   metrics: MetricDisplay[];
   primary: number | null;
   timestamp: number;
+  rawPayload?: string | null;
 }
 
 export interface DeviceConfig {
@@ -26,6 +27,7 @@ export interface DeviceConfig {
   route: string;
   color: string;
   deviceId?: string;
+  wsBaseUrl?: string;
   parse: (message: WsMessage) => ParsedDeviceData | null;
 }
 
@@ -59,4 +61,19 @@ export interface DeviceStreamState {
   history: number[];
   updatedAt: number | null;
   error: string | null;
+  rawPayload: string | null;
+}
+
+export interface OfficialDeviceSummary {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export interface PaginatedResponse<TData> {
+  data: TData[];
+  pager?: {
+    page: number;
+    per_page: number;
+  };
 }
